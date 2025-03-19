@@ -8,7 +8,11 @@ import (
 )
 
 type RequestBody struct {
-	// Add any request body fields if needed
+	Input struct {
+		Parameters struct {
+			DiscoveryURL string `json:"discoveryURL"`
+		} `json:"parameters"`
+	} `json:"input"`
 }
 
 type ResponseBody struct {
@@ -33,25 +37,29 @@ func getParamsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Decode the request body if necessary
-	/*
-	   var reqBody RequestBody
-	   err := json.NewDecoder(r.Body).Decode(&reqBody)
-	   if err != nil {
-	           http.Error(w, err.Error(), http.StatusBadRequest)
-	           return
-	   }
-	*/
+	// Decode the request body
+	var reqBody RequestBody
+	err := json.NewDecoder(r.Body).Decode(&reqBody)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
 	// Fetch data from discovery API
-	discoveryURL := "https://api.armosec.io/api/v2/servicediscovery"
+	discoveryURL := reqBody.Input.Parameters.DiscoveryURL
+	if discoveryURL == "" {
+		http.Error(w, "discoveryURL is required", http.StatusBadRequest)
+		return
+	}
 
 	resp, err := http.Get(discoveryURL)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Error fetching data from discovery API: %v", err), http.StatusInternalServerError)
 		return
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
 		http.Error(w, fmt.Sprintf("discovery API returned non-OK status: %d", resp.StatusCode), http.StatusInternalServerError)
