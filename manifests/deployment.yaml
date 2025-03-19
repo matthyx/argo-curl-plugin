@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argo-curl-plugin
+  namespace: argo-curl-plugin
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: argo-curl-plugin
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: argo-curl-plugin
+    spec:
+      containers:
+        - name: main
+          image: quay.io/matthiasb_1/argo-curl-plugin:latest
+          ports:
+            - containerPort: 8080
+              name: http

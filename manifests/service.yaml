@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: argo-curl-plugin
+  namespace: argo-curl-plugin
+spec:
+  selector:
+    app.kubernetes.io/name: argo-curl-plugin
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
