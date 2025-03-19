@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 )
 
@@ -12,8 +13,13 @@ type RequestBody struct {
 
 type ResponseBody struct {
 	Output struct {
-		Parameters []map[string]interface{} `json:"parameters"`
+		Parameters json.RawMessage `json:"parameters"`
 	} `json:"output"`
+}
+
+type ServiceDiscoveryResponse struct {
+	Version  string          `json:"version"`
+	Response json.RawMessage `json:"response"`
 }
 
 func getParamsHandler(w http.ResponseWriter, r *http.Request) {
@@ -37,28 +43,40 @@ func getParamsHandler(w http.ResponseWriter, r *http.Request) {
 	   }
 	*/
 
-	// Generate the response data
-	params := []map[string]interface{}{
-		{
-			"name":  "param1",
-			"value": "value1",
-		},
-		{
-			"name":  "param2",
-			"value": 123,
-		},
-		{
-			"name":  "param3",
-			"value": true,
-		},
+	// Fetch data from discovery API
+	discoveryURL := "https://api.armosec.io/api/v2/servicediscovery"
+
+	resp, err := http.Get(discoveryURL)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error fetching data from discovery API: %v", err), http.StatusInternalServerError)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		http.Error(w, fmt.Sprintf("discovery API returned non-OK status: %d", resp.StatusCode), http.StatusInternalServerError)
+		return
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error reading discovery API response: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	var discoveryResponse ServiceDiscoveryResponse
+	err = json.Unmarshal(body, &discoveryResponse)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error unmarshalling discovery API response: %v", err), http.StatusInternalServerError)
+		return
 	}
 
 	response := ResponseBody{}
-	response.Output.Parameters = params
+	response.Output.Parameters = discoveryResponse.Response
 
 	// Encode the response as JSON
 	w.Header().Set("Content-Type", "application/json")
-	err := json.NewEncoder(w).Encode(response)
+	err = json.NewEncoder(w).Encode(response)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
